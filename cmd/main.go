@@ -82,12 +82,11 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	fmt.Println("Shutdown in progress...")
+	log.Println("Shutting down the server")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	if err := e.Shutdown(ctx); err != nil {
 		e.Logger.Fatal("Failed to shutdown the server", err)
 	}
-
 }
