@@ -1,13 +1,10 @@
 package middleware
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -79,7 +76,6 @@ func RoleMiddleware(cfg Config) echo.MiddlewareFunc {
 					Internal: errors.New("internal server error"),
 				}
 			}
-			fmt.Println(user)
 
 			perms, err := cfg.getPermissionByUserID(c.Request().Context(), user.ID)
 			if err != nil {
@@ -99,23 +95,27 @@ func RoleMiddleware(cfg Config) echo.MiddlewareFunc {
 					Message: "access denied",
 				}
 			}
-
 			user.Role.Permissions = perms
 
-			plainJson, _ := json.Marshal(map[string]interface{}{
-				"id":    user.ID,
-				"name":  user.Name,
-				"email": user.Email,
-				"role":  user.Role,
-			})
-
-			req := c.Request()
-			req.Body = ioutil.NopCloser(bytes.NewBuffer(plainJson))
-
-			c.SetRequest(c.Request().WithContext(context.WithValue(c.Request().Context(), "body", user)))
+			ctx := c.Request().Context()
+			ctx = context.WithValue(ctx, userKey, user)
+			c.SetRequest(c.Request().WithContext(ctx))
 			return next(c)
 		}
 	}
+}
+
+type ctxKey int
+
+const userKey ctxKey = iota
+
+// ClaimUserFromContext returns the user from the context.
+func ClaimUserFromContext(ctx context.Context) *User {
+	claim, ok := ctx.Value(userKey).(*User)
+	if !ok {
+		return &User{}
+	}
+	return claim
 }
 
 func (r *Config) getUserByID(ctx context.Context, id string) (User, error) {
